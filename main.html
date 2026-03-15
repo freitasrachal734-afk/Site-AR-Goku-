@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Goku AR Camera</title>
+
+<style>
+
+body{
+margin:0;
+overflow:hidden;
+background:black;
+}
+
+video,canvas{
+position:absolute;
+width:100%;
+height:100%;
+object-fit:cover;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
+<script>
+
+const video = document.getElementById("video")
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
+
+const goku = new Image()
+goku.src = "assets/goku_head.png"
+
+navigator.mediaDevices.getUserMedia({video:true}).then(stream=>{
+video.srcObject = stream
+})
+
+canvas.width = window.innerWidth
+canvas.height = window.innerHeight
+
+const faceDetection = new FaceDetection({
+locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+})
+
+faceDetection.setOptions({
+modelSelection:0,
+minDetectionConfidence:0.5
+})
+
+const hands = new Hands({
+locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+})
+
+hands.setOptions({
+maxNumHands:2,
+minDetectionConfidence:0.7
+})
+
+faceDetection.onResults(drawResults)
+hands.onResults(drawResults)
+
+function drawResults(results){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+ctx.drawImage(video,0,0,canvas.width,canvas.height)
+
+if(results.detections){
+
+results.detections.forEach(det=>{
+
+const box = det.boundingBox
+
+let x = box.xCenter*canvas.width
+let y = box.yCenter*canvas.height
+let w = box.width*canvas.width
+let h = box.height*canvas.height
+
+ctx.drawImage(goku,x-w/2,y-h/2,w,h)
+
+})
+
+}
+
+if(results.multiHandLandmarks){
+
+results.multiHandLandmarks.forEach(hand=>{
+
+let px = hand[9].x*canvas.width
+let py = hand[9].y*canvas.height
+
+ctx.fillStyle="red"
+ctx.beginPath()
+ctx.arc(px,py,20,0,Math.PI*2)
+ctx.fill()
+
+})
+
+}
+
+}
+
+const camera = new Camera(video,{
+onFrame: async () => {
+
+await faceDetection.send({image:video})
+await hands.send({image:video})
+
+},
+width:640,
+height:480
+})
+
+camera.start()
+
+</script>
+
+</body>
+
+</html>
